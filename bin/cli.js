@@ -14,7 +14,8 @@ var chalk = require('chalk')
 var ASYNC_LIMIT = 20
 var argv = require('minimist')(process.argv.slice(2), {
   alias: {
-    extension: 'e'
+    extension: 'e',
+    rename: 'r'
   }
 })
 
@@ -63,11 +64,10 @@ mkdirp(output, function (err) {
       return /^[^\#]/.test(url)
     })
     
-    var urls = nodes.map(function (x) {
-      return x.url
-    })
-    filterContentType(urls, findExtensions, function (results) {
-      async.eachLimit(urls, ASYNC_LIMIT, function (item, next) {
+    console.error(chalk.gray('Searching ' + chalk.bold(nodes.length) + ' links'))
+    filterContentType(nodes, findExtensions, function (results) {
+      nodes = results
+      async.eachLimit(nodes, ASYNC_LIMIT, function (item, next) {
         saveResource(item, function (err) {
           if (err) console.error(chalk.yellow('Error requesting URL contents: ' + item))
           else {
@@ -75,7 +75,7 @@ mkdirp(output, function (err) {
           }
         })
       }, function (err) {
-        done(err, urls)
+        done(err, nodes)
       })
     })
   })
@@ -83,13 +83,17 @@ mkdirp(output, function (err) {
 
 function done (err, urls) {
   if (err) console.error(err)
-  else {
-    console.error(chalk.green('Finished downloading ') + chalk.bold(urls.length) + chalk.green(' resources'))
+  else if (urls.length === 0) {
+    console.error(chalk.yellow('No resources found'))    
+  } else {
+    var word = urls.length === 1 ? 'resource' : 'resources'
+    console.error(chalk.green('Finished downloading ') + chalk.bold(urls.length) + chalk.green(' ' + word))
   }
 }
 
-function filterContentType (urls, extensions, cb) {
-  async.mapLimit(urls, ASYNC_LIMIT, function (url, next) {
+function filterContentType (nodes, extensions, cb) {
+  async.mapLimit(nodes, ASYNC_LIMIT, function (node, next) {
+    var url = node.url
     got.head(url, function (err, body, res) {
       if (err) {
         console.error(chalk.yellow('Error requesting URL: ') + url)
@@ -102,7 +106,7 @@ function filterContentType (urls, extensions, cb) {
         var any = exts.some(function (ext) {
           return extensions.indexOf(ext) >= 0
         })
-        return next(null, any ? url : null)
+        return next(null, any ? node : null)
       } else {
         return next(null, null)
       }
@@ -113,12 +117,17 @@ function filterContentType (urls, extensions, cb) {
   })
 }
 
-function saveResource (url, cb) {
-  var name = path.basename(url)
+function saveResource (node, cb) {
+  var url = node.url
+  var ext = path.extname(node.url)
+  var name = argv.rename ? (node.text + ext) : path.basename(url)
   var file = path.join(output, name)
   var out = fs.createWriteStream(file)
   console.error(chalk.magenta('Downloading ') + chalk.gray(name))
-  got(url).pipe(out)
+  var stream = got(url)
+    .on('error', cb)
+  
+  stream.pipe(out)
     .on('close', function () {
       cb(null)
     })

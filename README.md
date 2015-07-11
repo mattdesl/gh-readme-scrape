@@ -2,6 +2,8 @@
 
 [![unstable](http://badges.github.io/stability-badges/dist/unstable.svg)](http://github.com/badges/stability-badges)
 
+![screen](http://i.imgur.com/kfmkGFj.png)
+
 A small CLI which scrapes GitHub readme pages for links and images of a certain file type, and then bulk downloads them into a destination folder.
 
 ## Install
@@ -25,8 +27,12 @@ This will save all the SVGs into a local folder called `logos`, see below:
 Or, to bulk download PDFs from the [graphics-resources](https://github.com/mattdesl/graphics-resources) readme:
 
 ```sh
-gh-readme-scrape mattdesl/graphics-resources papers/ -e pdf
+gh-readme-scrape mattdesl/graphics-resources papers/ -e pdf --rename
 ```
+
+The `--rename` flag will use the anchor text in the markdown to determine the file name. Result:
+
+![image](http://i.imgur.com/QnO0iAE.png)
 
 ## Usage
 
@@ -39,6 +45,7 @@ Usage:
 
 Options:
   --extension, -e  a list of extensions, comma-separated
+  --rename, -r     rename filenames to the Markdown anchor text
 ```
 
 The `repository` can be a full URL to the repository, or a shorthand like `gilbarbara/logos`.
