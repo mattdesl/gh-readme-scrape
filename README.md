@@ -12,7 +12,7 @@ npm install -g gh-readme-scrape
 
 ## Examples
 
-For example, to bulk download the SVGs from [ghilbarbara/logos](https://github.com/gilbarbara/logos):
+For example, to bulk download the SVGs from [gilbarbara/logos](https://github.com/gilbarbara/logos):
 
 ```sh
 gh-readme-scrape gilbarbara/logos logos/ -e svg
