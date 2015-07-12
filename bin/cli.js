@@ -19,6 +19,7 @@ var argv = require('minimist')(process.argv.slice(2), {
   }
 })
 
+var timeout = typeof argv.timeout === 'number' ? argv.timeout : 4000
 var repoUrl = argv._[0]
 if (!repoUrl) {
   throw new Error('must provide GitHub repository')
@@ -41,7 +42,7 @@ findExtensions = findExtensions.map(function (ext) {
 }, []).filter(Boolean)
 
 if (findExtensions.length === 0) {
-  throw new Error('must provide at least one extension to look for')  
+  throw new Error('must provide at least one extension to look for')
 }
 
 var output = argv._[1]
@@ -55,22 +56,23 @@ mkdirp(output, function (err) {
   if (err) throw err
   getReadme(repo, function (err, body) {
     if (err) throw err
-    
-    var nodes = getUrls(body, { 
+
+    var nodes = getUrls(body, {
       repository: repoUrl,
       baseUrl: '' // don't resolve fragments
     }).filter(function (node) {
       var url = node.url
       return /^[^\#]/.test(url)
     })
-    
+
     console.error(chalk.gray('Searching ' + chalk.bold(nodes.length) + ' links'))
     filterContentType(nodes, findExtensions, function (results) {
       nodes = results
       async.eachLimit(nodes, ASYNC_LIMIT, function (item, next) {
         saveResource(item, function (err) {
-          if (err) console.error(chalk.yellow('Error requesting URL contents: ' + item))
-          else {
+          if (err) {
+            console.error(chalk.yellow('Error requesting URL contents: ' + item))
+          } else {
             return next(null)
           }
         })
@@ -84,7 +86,7 @@ mkdirp(output, function (err) {
 function done (err, urls) {
   if (err) console.error(err)
   else if (urls.length === 0) {
-    console.error(chalk.yellow('No resources found'))    
+    console.error(chalk.yellow('No resources found'))
   } else {
     var word = urls.length === 1 ? 'resource' : 'resources'
     console.error(chalk.green('Finished downloading ') + chalk.bold(urls.length) + chalk.green(' ' + word))
@@ -94,12 +96,16 @@ function done (err, urls) {
 function filterContentType (nodes, extensions, cb) {
   async.mapLimit(nodes, ASYNC_LIMIT, function (node, next) {
     var url = node.url
-    got.head(url, function (err, body, res) {
+    got.head(url, { timeout: timeout }, function (err, body, res) {
       if (err) {
         console.error(chalk.yellow('Error requesting URL: ') + url)
         return next(null, null)
       }
-      
+
+      if (argv.verbose) {
+        console.error(chalk.dim('GET ' + url))
+      }
+
       if (res.headers && res.headers['content-type']) {
         var content = contentType.parse(res.headers['content-type'])
         var exts = mimeExtensions[content.type]
@@ -124,9 +130,9 @@ function saveResource (node, cb) {
   var file = path.join(output, name)
   var out = fs.createWriteStream(file)
   console.error(chalk.magenta('Downloading ') + chalk.gray(name))
-  var stream = got(url)
+  var stream = got(url, { timeout: timeout })
     .on('error', cb)
-  
+
   stream.pipe(out)
     .on('close', function () {
       cb(null)
@@ -139,7 +145,7 @@ function saveResource (node, cb) {
 function getReadme (repo, cb) {
   var api = 'https://api.github.com/repos/'
   var url = api + repo.user + '/' + repo.repo + '/readme'
-  got(url, { json: true }, function (err, result, res) {
+  got(url, { timeout: timeout, json: true }, function (err, result, res) {
     if (err) return cb(err)
     if (!(/^2/.test(res.statusCode))) return cb(new Error('invalid status code ' + res.statusCode))
     var contents = result.content

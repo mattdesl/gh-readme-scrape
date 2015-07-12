@@ -46,6 +46,8 @@ Usage:
 Options:
   --extension, -e  a list of extensions, comma-separated
   --rename, -r     rename filenames to the Markdown anchor text
+  --timeout=n      ms timeout before failing a request (default 4000ms)
+  --verbose        log all requests
 ```
 
 The `repository` can be a full URL to the repository, or a shorthand like `gilbarbara/logos`.
