@@ -60,6 +60,7 @@ mkdirp(output, function (err) {
     if (err) throw err
 
     var nodes = getUrls(body, {
+      raw: true,
       repository: repoUrl,
       baseUrl: '' // don't resolve fragments
     }).filter(function (node) {
@@ -99,8 +100,7 @@ function done (err, urls) {
 }
 
 function filterContentType (nodes, extensions, cb) {
-  nodes = nodes.slice(0, 1)
-  async.eachSeries(nodes, function (node, next) {
+  async.mapLimit(nodes, ASYNC_LIMIT, function (node, next) {
     var url = node.url
     got.head(url, {
       timeout: timeout
@@ -125,7 +125,10 @@ function filterContentType (nodes, extensions, cb) {
       }
     })
   }, function (err, results) {
-    if (err) console.error(err)
+    if (err) {
+      console.error(err)
+      process.exit(1)
+    }
     cb(results.filter(Boolean))
   })
 }
