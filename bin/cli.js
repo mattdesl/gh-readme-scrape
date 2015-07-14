@@ -10,13 +10,15 @@ var mkdirp = require('mkdirp')
 var path = require('path')
 var fs = require('fs')
 var chalk = require('chalk')
+var ghauth = require('ghauth')
 
 var ASYNC_LIMIT = 20
 var argv = require('minimist')(process.argv.slice(2), {
   alias: {
     extension: 'e',
     rename: 'r'
-  }
+  },
+  boolean: ['verbose']
 })
 
 var timeout = typeof argv.timeout === 'number' ? argv.timeout : 4000
@@ -68,6 +70,9 @@ mkdirp(output, function (err) {
     console.error(chalk.gray('Searching ' + chalk.bold(nodes.length) + ' links'))
     filterContentType(nodes, findExtensions, function (results) {
       nodes = results
+      if (argv.verbose) {
+        console.error(chalk.gray('Filtered down to ' + chalk.bold(nodes.length) + ' links'))
+      }
       async.eachLimit(nodes, ASYNC_LIMIT, function (item, next) {
         saveResource(item, function (err) {
           if (err) {
@@ -94,18 +99,20 @@ function done (err, urls) {
 }
 
 function filterContentType (nodes, extensions, cb) {
-  async.mapLimit(nodes, ASYNC_LIMIT, function (node, next) {
+  nodes = nodes.slice(0, 1)
+  async.eachSeries(nodes, function (node, next) {
     var url = node.url
-    got.head(url, { timeout: timeout }, function (err, body, res) {
+    got.head(url, {
+      timeout: timeout
+    }, function (err, body, res) {
       if (err) {
         console.error(chalk.yellow('Error requesting URL: ') + url)
         return next(null, null)
       }
-
       if (argv.verbose) {
         console.error(chalk.dim('GET ' + url))
       }
-
+      
       if (res.headers && res.headers['content-type']) {
         var content = contentType.parse(res.headers['content-type'])
         var exts = mimeExtensions[content.type]
@@ -130,22 +137,56 @@ function saveResource (node, cb) {
   var file = path.join(output, name)
   var out = fs.createWriteStream(file)
   console.error(chalk.magenta('Downloading ') + chalk.gray(name))
-  var stream = got(url, { timeout: timeout })
-    .on('error', cb)
+  process.nextTick(cb)
+  // var stream = got(url, {
+  //   timeout: timeout
+  // }).on('error', cb)
 
-  stream.pipe(out)
-    .on('close', function () {
-      cb(null)
-    })
-    .on('error', function (err) {
-      cb(err)
-    })
+  // stream.pipe(out)
+  //   .on('close', function () {
+  //     cb(null)
+  //   })
+  //   .on('error', function (err) {
+  //     cb(err)
+  //   })
 }
 
 function getReadme (repo, cb) {
+  if (argv.auth) {
+    ghauth({
+      configName: 'gh-readme-scrape',
+      scopes: ['user', 'repo']
+    }, function (err, data) {
+      if (err) throw err
+      getReadmeRequest(repo, data.token, cb)
+    })
+  } else {
+    getReadmeRequest(repo, null, cb)
+  }
+}
+
+function getReadmeRequest (repo, token, cb) {
   var api = 'https://api.github.com/repos/'
   var url = api + repo.user + '/' + repo.repo + '/readme'
-  got(url, { timeout: timeout, json: true }, function (err, result, res) {
+  
+  var headers = {
+    accept: 'application/vnd.github.v3+json',
+    'user-agent': 'gh-api-stream'
+  }
+  if (token) {
+    headers.authorization = 'token ' + token
+  }
+  
+  got(url, {
+    timeout: timeout,
+    json: true,
+    headers: headers
+  }, function (err, result, res) {
+    if (res.statusCode === 403) {
+      console.error(chalk.red('HTTP 403 Error:'), "You've hit the GitHub API Limit")
+      console.error('Try running again with --auth')
+      process.exit(1)
+    }
     if (err) return cb(err)
     if (!(/^2/.test(res.statusCode))) return cb(new Error('invalid status code ' + res.statusCode))
     var contents = result.content
