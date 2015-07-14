@@ -140,18 +140,17 @@ function saveResource (node, cb) {
   var file = path.join(output, name)
   var out = fs.createWriteStream(file)
   console.error(chalk.magenta('Downloading ') + chalk.gray(name))
-  process.nextTick(cb)
-  // var stream = got(url, {
-  //   timeout: timeout
-  // }).on('error', cb)
+  var stream = got(url, {
+    timeout: timeout
+  }).on('error', cb)
 
-  // stream.pipe(out)
-  //   .on('close', function () {
-  //     cb(null)
-  //   })
-  //   .on('error', function (err) {
-  //     cb(err)
-  //   })
+  stream.pipe(out)
+    .on('close', function () {
+      cb(null)
+    })
+    .on('error', function (err) {
+      cb(err)
+    })
 }
 
 function getReadme (repo, cb) {
