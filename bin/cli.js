@@ -18,7 +18,7 @@ var argv = require('minimist')(process.argv.slice(2), {
     extension: 'e',
     rename: 'r'
   },
-  boolean: ['verbose']
+  boolean: ['verbose', 'auth']
 })
 
 var timeout = typeof argv.timeout === 'number' ? argv.timeout : 4000

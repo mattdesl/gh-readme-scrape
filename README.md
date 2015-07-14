@@ -48,6 +48,7 @@ Options:
   --rename, -r     rename filenames to the Markdown anchor text
   --timeout=n      ms timeout before failing a request (default 4000ms)
   --verbose        log all requests
+  --auth           authorize the readme request with GH API
 ```
 
 The `repository` can be a full URL to the repository, or a shorthand like `gilbarbara/logos`.
