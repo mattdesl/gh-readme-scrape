@@ -1,6 +1,6 @@
 {
   "name": "gh-readme-scrape",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "description": "a CLI to bulk download URLs (images/pdfs/etc) in Markdown",
   "main": "index.js",
   "license": "MIT",
